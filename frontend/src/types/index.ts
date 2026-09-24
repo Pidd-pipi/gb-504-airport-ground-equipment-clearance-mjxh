@@ -106,8 +106,34 @@ export interface ClearanceDecision {
   operator_id: number;
   request_id: string;
   decided_at: string;
+  reconsidered_from_request_id: string;
+  reconsidered_from_reason: string;
+  reconsidered_from_at: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface ReadinessUnitBlocker {
+  id: number;
+  unit_code: string;
+  state: UnitState;
+}
+
+export interface TurnaroundReadiness {
+  turnaround_id: number;
+  flight_no: string;
+  status: Turnaround['status'];
+  pending_checks: number;
+  failed_checks: number;
+  unit_states: Record<string, UnitState>;
+  pending_check_codes: string[];
+  failed_check_codes: string[];
+  unavailable_units: ReadinessUnitBlocker[];
+  eligible_for_reconsider: boolean;
+  clearance_state: ClearanceState;
+  ready_for_decision: boolean;
+  ready_for_full_clearance: boolean;
+  blockers: string[];
 }
 
 export interface ClearanceSummary {

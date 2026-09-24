@@ -244,17 +244,22 @@ func (s *TurnaroundService) Readiness(id uint64) (map[string]any, error) {
 	blockers := make([]string, 0)
 	pending := 0
 	failed := 0
+	pendingChecks := make([]string, 0)
+	failedChecks := make([]string, 0)
 	for _, check := range checks {
 		switch check.Result {
 		case constants.CheckPending:
 			pending++
+			pendingChecks = append(pendingChecks, check.CheckCode)
 			blockers = append(blockers, "pending check: "+check.CheckCode)
 		case constants.CheckFailed:
 			failed++
+			failedChecks = append(failedChecks, check.CheckCode)
 			blockers = append(blockers, "failed check: "+check.CheckCode)
 		}
 	}
 	unitStates := make(map[string]string, len(row.GroundUnitIDs))
+	unavailableUnits := make([]map[string]any, 0)
 	for _, rawID := range row.GroundUnitIDs {
 		unitID, parseErr := strconv.ParseUint(rawID, 10, 64)
 		if parseErr != nil {
@@ -268,6 +273,9 @@ func (s *TurnaroundService) Readiness(id uint64) (map[string]any, error) {
 		}
 		unitStates[rawID] = unit.State
 		if unit.State != constants.UnitAvailable {
+			unavailableUnits = append(unavailableUnits, map[string]any{
+				"id": unit.ID, "unit_code": unit.UnitCode, "state": unit.State,
+			})
 			blockers = append(blockers, "ground unit "+unit.UnitCode+" is "+unit.State)
 		}
 	}
@@ -278,9 +286,13 @@ func (s *TurnaroundService) Readiness(id uint64) (map[string]any, error) {
 	}
 	readyForDecision := pending == 0
 	readyForFullClearance := pending == 0 && failed == 0 && len(blockers) == 0
+	eligibleForReconsider := clearanceState == constants.ClearanceRevoked && row.Status == constants.TurnaroundDecisioned &&
+		pending == 0 && failed == 0 && len(unavailableUnits) == 0
 	return map[string]any{
 		"turnaround_id": id, "flight_no": row.FlightNo, "status": row.Status,
 		"pending_checks": pending, "failed_checks": failed, "unit_states": unitStates,
+		"pending_check_codes": pendingChecks, "failed_check_codes": failedChecks,
+		"unavailable_units": unavailableUnits, "eligible_for_reconsider": eligibleForReconsider,
 		"clearance_state": clearanceState, "ready_for_decision": readyForDecision,
 		"ready_for_full_clearance": readyForFullClearance, "blockers": blockers,
 	}, nil

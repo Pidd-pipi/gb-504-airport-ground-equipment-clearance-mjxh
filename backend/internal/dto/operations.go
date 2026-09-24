@@ -25,3 +25,7 @@ type ClearanceDecisionRequest struct {
 	Reason       string   `json:"reason" binding:"required,max=2000"`
 	Evidence     []string `json:"evidence" binding:"required,min=1"`
 }
+
+type ClearanceReconsiderRequest struct {
+	Reason string `json:"reason" binding:"required,max=2000"`
+}

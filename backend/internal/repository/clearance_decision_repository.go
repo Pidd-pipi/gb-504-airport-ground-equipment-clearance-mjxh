@@ -44,6 +44,18 @@ func (r *ClearanceDecisionRepository) FindByID(id uint64) (*model.ClearanceDecis
 	return &row, nil
 }
 
+func (r *ClearanceDecisionRepository) FindByIDTx(tx *gorm.DB, id uint64) (*model.ClearanceDecision, error) {
+	var row model.ClearanceDecision
+	err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&row, id).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("lock clearance decision: %w", err)
+	}
+	return &row, nil
+}
+
 func (r *ClearanceDecisionRepository) FindByTurnaround(turnaroundID uint64) (*model.ClearanceDecision, error) {
 	var row model.ClearanceDecision
 	if err := r.db.Where("turnaround_id = ?", turnaroundID).First(&row).Error; err != nil {

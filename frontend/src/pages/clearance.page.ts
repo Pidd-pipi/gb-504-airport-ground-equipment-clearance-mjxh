@@ -10,16 +10,17 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { clearanceDecideApi } from '../api/clearance.api';
+import { clearanceDecideApi, clearanceReconsiderApi } from '../api/clearance.api';
+import { turnaroundReadinessApi } from '../api/turnaround.api';
 import { ClearancePanelComponent } from '../components/common/clearance-panel.component';
 import { ConfirmDialogComponent } from '../components/common/confirm-dialog.component';
 import { StatusBadgeComponent } from '../components/common/status-badge.component';
-import { CLEARANCE_STATE_TEXT, ROLE } from '../constants/enums';
+import { CLEARANCE_STATE_TEXT, ROLE, UNIT_STATE_TEXT } from '../constants/enums';
 import { useAuth } from '../hooks/use-auth';
 import { usePagination } from '../hooks/use-pagination';
 import { ClearanceStore } from '../stores/clearance.store';
 import { TurnaroundStore } from '../stores/turnaround.store';
-import { ClearanceDecision, ClearanceState } from '../types';
+import { ClearanceDecision, ClearanceState, TurnaroundReadiness } from '../types';
 import { parseHttpError, useHttp } from '../utils/request';
 
 @Component({
@@ -57,7 +58,7 @@ import { parseHttpError, useHttp } from '../utils/request';
       </div>
 
       <aside class="decision-pane" *ngIf="selected; else selectionHint">
-        <app-clearance-panel [decision]="selected"></app-clearance-panel>
+        <app-clearance-panel [decision]="selected" [showReconsider]="canManage" [reconsiderReasons]="reconsiderReasons" (reconsiderRequested)="openReconsider()"></app-clearance-panel>
         <div class="decision-context">
           <span><small>航班周转</small>{{ flightLabel(selected.turnaround_id) }}</span>
           <span><small>前一状态</small>{{ selected.previous_state ? stateText[selected.previous_state] : '首次决定' }}</span>
@@ -71,6 +72,13 @@ import { parseHttpError, useHttp } from '../utils/request';
           <mat-form-field appearance="outline"><mat-label>证据编号 / 文件名</mat-label><input matInput formControlName="evidence" placeholder="多个证据用逗号分隔"></mat-form-field>
           <div class="form-warning" *ngIf="form.controls.state.value === 'revoked'"><mat-icon>warning</mat-icon>撤销后不可恢复，请确认已通知现场调度。</div>
           <button mat-flat-button type="submit" [class.danger-button]="form.controls.state.value === 'revoked'" [disabled]="form.invalid || saving"><mat-icon>gavel</mat-icon>记录决定</button>
+        </form>
+        <form *ngIf="canManage && reconsidering && selected.state === 'revoked'" [formGroup]="reconsiderForm" (ngSubmit)="submitReconsider()" class="decision-form">
+          <h3>发起复议，退回待决定</h3>
+          <mat-form-field appearance="outline"><mat-label>复议理由</mat-label><textarea matInput rows="3" formControlName="reason" placeholder="说明设备已恢复、检查已闭环的复核结论"></textarea></mat-form-field>
+          <div class="form-note"><mat-icon>info</mat-icon>复议将把撤销决定退回待决定、周转退回检查中；原撤销记录与理由保留在审计链中。</div>
+          <button mat-flat-button type="submit" [disabled]="reconsiderForm.invalid || saving"><mat-icon>undo</mat-icon>确认复议退回</button>
+          <button mat-button type="button" (click)="cancelReconsider()">取消</button>
         </form>
       </aside>
       <ng-template #selectionHint><aside class="decision-pane placeholder"><mat-icon>verified_user</mat-icon><strong>选择放行记录</strong><span>查看当前状态并形成安全决定</span></aside></ng-template>
@@ -88,14 +96,18 @@ export class ClearancePage implements OnInit {
   readonly pagination = usePagination(20);
   readonly canManage = this.auth.hasRole(ROLE.ADMIN, ROLE.SAFETY_MANAGER);
   readonly stateText = CLEARANCE_STATE_TEXT;
+  readonly unitStateText = UNIT_STATE_TEXT;
   selected: ClearanceDecision | null = null;
   filter = '';
   saving = false;
+  reconsidering = false;
+  reconsiderReasons: string[] | null = null;
   targetStates: Array<Exclude<ClearanceState, 'pending'>> = ['cleared', 'restricted', 'revoked'];
   readonly form = this.fb.nonNullable.group({
     state: ['cleared' as Exclude<ClearanceState, 'pending'>, Validators.required],
     restrictions: [''], reason: ['', Validators.required], evidence: ['', Validators.required],
   });
+  readonly reconsiderForm = this.fb.nonNullable.group({ reason: ['', Validators.required] });
 
   ngOnInit(): void { this.reload(); this.turnarounds.load(1, 200); }
   flightLabel(turnaroundId: number): string {
@@ -107,8 +119,44 @@ export class ClearancePage implements OnInit {
   pageChanged(event: PageEvent): void { this.selected = null; this.pagination.setPage(event.pageIndex + 1); this.pagination.pageSize.set(event.pageSize); this.reload(); }
   select(item: ClearanceDecision): void {
     this.selected = item;
+    this.reconsidering = false;
+    this.reconsiderReasons = null;
     this.targetStates = item.state === 'pending' ? ['cleared', 'restricted', 'revoked'] : ['revoked'];
     this.form.reset({ state: this.targetStates[0], restrictions: '', reason: '', evidence: '' });
+    if (this.canManage && item.state === 'revoked') this.loadReconsiderReadiness(item.turnaround_id);
+  }
+
+  openReconsider(): void {
+    if (!this.selected || this.reconsiderReasons === null || this.reconsiderReasons.length > 0) return;
+    this.reconsidering = true;
+    this.reconsiderForm.reset({ reason: '' });
+  }
+  cancelReconsider(): void { this.reconsidering = false; }
+
+  submitReconsider(): void {
+    if (!this.selected || this.reconsiderForm.invalid) return;
+    const reason = this.reconsiderForm.getRawValue().reason.trim();
+    this.dialog.open(ConfirmDialogComponent, { data: {
+      title: '确认复议退回', message: '撤销决定将退回待决定、周转退回检查中，原撤销记录与理由保留在审计链。确认继续？',
+      confirmText: '确认复议', danger: false,
+    }}).afterClosed().subscribe(confirmed => {
+      if (!confirmed || !this.selected) return;
+      this.saving = true;
+      clearanceReconsiderApi(this.http, this.selected.id, reason).subscribe({
+        next: updated => {
+          this.saving = false;
+          this.reconsidering = false;
+          this.reconsiderReasons = null;
+          this.selected = updated;
+          this.targetStates = ['cleared', 'restricted', 'revoked'];
+          this.form.reset({ state: 'cleared', restrictions: '', reason: '', evidence: '' });
+          this.store.load(this.pagination.page(), this.pagination.pageSize(), this.filter);
+          this.turnarounds.load(1, 200);
+          this.snack.open('复议已记录，撤销决定退回待决定', '关闭', { duration: 2800 });
+        },
+        error: error => { this.saving = false; this.snack.open(parseHttpError(error), '关闭', { duration: 4500 }); },
+      });
+    });
   }
 
   decide(): void {
@@ -133,5 +181,30 @@ export class ClearancePage implements OnInit {
         error: error => { this.saving = false; this.snack.open(parseHttpError(error), '关闭', { duration: 4500 }); },
       });
     });
+  }
+
+  private loadReconsiderReadiness(turnaroundId: number): void {
+    this.reconsiderReasons = null;
+    turnaroundReadinessApi(this.http, turnaroundId).subscribe({
+      next: readiness => { this.reconsiderReasons = this.computeReconsiderReasons(readiness); },
+      error: error => { this.reconsiderReasons = [`无法核对复议条件：${parseHttpError(error)}`]; },
+    });
+  }
+
+  private computeReconsiderReasons(readiness: TurnaroundReadiness): string[] {
+    const reasons: string[] = [];
+    if (readiness.status !== 'decisioned') {
+      reasons.push('周转当前不在已决定状态，无法退回检查中');
+    }
+    if (readiness.pending_checks > 0) {
+      reasons.push(`还有 ${readiness.pending_checks} 项检查待处理（${readiness.pending_check_codes.join('、')}）`);
+    }
+    if (readiness.failed_checks > 0) {
+      reasons.push(`存在 ${readiness.failed_checks} 项未通过检查（${readiness.failed_check_codes.join('、')}），无法复议`);
+    }
+    for (const unit of readiness.unavailable_units) {
+      reasons.push(`设备 ${unit.unit_code} 尚未恢复（当前状态：${this.unitStateText[unit.state] || unit.state}）`);
+    }
+    return reasons;
   }
 }

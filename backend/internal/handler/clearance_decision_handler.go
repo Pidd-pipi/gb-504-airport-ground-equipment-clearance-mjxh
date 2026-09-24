@@ -73,6 +73,27 @@ func (h *ClearanceDecisionHandler) Decide(c *gin.Context) {
 	OKWithMessage(c, constants.MsgDecisionRecorded, row)
 }
 
+func (h *ClearanceDecisionHandler) Reconsider(c *gin.Context) {
+	id, ok := parseID(c)
+	if !ok {
+		return
+	}
+	var request dto.ClearanceReconsiderRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		Fail(c, http.StatusBadRequest, constants.CodeBadRequest, err.Error())
+		return
+	}
+	requestID, _ := c.Get("request_id")
+	row, err := h.svc.Reconsider(id, middleware.GetUserID(c), request.Reason,
+		stringValue(requestID), middleware.GetPhone(c), c.ClientIP())
+	if err != nil {
+		handleServiceError(c, h.logger, err, "clearance reconsider")
+		return
+	}
+	c.Set("audit_persisted", true)
+	OKWithMessage(c, constants.MsgReconsiderRecorded, row)
+}
+
 func stringValue(value any) string {
 	result, _ := value.(string)
 	return result

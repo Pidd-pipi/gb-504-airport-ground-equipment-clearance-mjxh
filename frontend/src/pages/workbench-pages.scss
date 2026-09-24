@@ -108,6 +108,8 @@ td small.note { max-width: 190px; overflow: hidden; text-overflow: ellipsis; whi
 .decision-context { margin: 13px 0; }
 .form-warning { display: flex; align-items: center; gap: 7px; margin-bottom: 12px; padding: 9px; color: #a63b32; background: #fff0ed; font-size: 11px; border-radius: 4px; }
 .form-warning mat-icon { font-size: 18px; width: 18px; height: 18px; }
+.form-note { display: flex; align-items: center; gap: 7px; margin-bottom: 12px; padding: 9px; color: #2f5d57; background: #eaf5f2; font-size: 11px; border-radius: 4px; }
+.form-note mat-icon { flex: none; font-size: 18px; width: 18px; height: 18px; }
 .danger-button { background: #b42318 !important; }
 
 .audit-summary { min-height: 54px; display: flex; align-items: center; gap: 10px; margin-bottom: 18px; padding: 10px 14px; border: 1px solid #cde0dd; border-radius: 5px; background: #f2f9f7; color: #53676e; font-size: 11px; }

@@ -20,6 +20,7 @@ func TestClearanceTransition(t *testing.T) {
 		{constants.ClearanceRestricted, constants.ClearanceRevoked, true},
 		{constants.ClearanceRevoked, constants.ClearanceCleared, false},
 		{constants.ClearanceCleared, constants.ClearanceRestricted, false},
+		{constants.ClearanceRevoked, constants.ClearancePending, false},
 	}
 	for _, item := range cases {
 		if got := allowedClearanceTransition(item.from, item.to); got != item.want {

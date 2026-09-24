@@ -24,3 +24,7 @@ export interface ClearancePayload {
 export function clearanceDecideApi(http: HttpClient, payload: ClearancePayload): Observable<ClearanceDecision> {
   return http.post<ApiResponse<ClearanceDecision>>(`${API_BASE}/v1/clearance`, payload).pipe(map(extractData));
 }
+
+export function clearanceReconsiderApi(http: HttpClient, id: number, reason: string): Observable<ClearanceDecision> {
+  return http.post<ApiResponse<ClearanceDecision>>(`${API_BASE}/v1/clearance/${id}/reconsider`, { reason }).pipe(map(extractData));
+}
