@@ -106,8 +106,25 @@ export interface ClearanceDecision {
   operator_id: number;
   request_id: string;
   decided_at: string;
+  reopened_from_audit_id: number;
+  reopened_from_reason: string;
+  reopened_at: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface ReconsiderationEligibility {
+  turnaround_id: number;
+  clearance_id: number;
+  clearance_state: ClearanceState;
+  turnaround_status: Turnaround['status'];
+  eligible: boolean;
+  blockers: string[];
+  revoked_reason: string;
+  revoked_at: string;
+  pending_checks: number;
+  failed_checks: number;
+  unit_states: Record<string, UnitState>;
 }
 
 export interface ClearanceSummary {

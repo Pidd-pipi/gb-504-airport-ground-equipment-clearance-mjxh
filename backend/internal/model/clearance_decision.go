@@ -14,8 +14,13 @@ type ClearanceDecision struct {
 	OperatorID    uint64    `gorm:"not null;index" json:"operator_id"`
 	RequestID     string    `gorm:"size:64;index" json:"request_id"`
 	DecidedAt     time.Time `json:"decided_at"`
-	CreatedAt     time.Time `json:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at"`
+	// Reconsideration snapshot: when a revoked decision is sent back to pending
+	// these columns point at the original revocation audit entry and its reason.
+	ReopenedFromAuditID uint64     `gorm:"not null;default:0" json:"reopened_from_audit_id"`
+	ReopenedFromReason  string     `gorm:"type:text;not null;default:''" json:"reopened_from_reason"`
+	ReopenedAt          *time.Time `json:"reopened_at"`
+	CreatedAt           time.Time  `json:"created_at"`
+	UpdatedAt           time.Time  `json:"updated_at"`
 }
 
 func (ClearanceDecision) TableName() string { return "clearance_decisions" }

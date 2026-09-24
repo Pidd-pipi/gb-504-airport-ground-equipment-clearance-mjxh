@@ -110,6 +110,24 @@ td small.note { max-width: 190px; overflow: hidden; text-overflow: ellipsis; whi
 .form-warning mat-icon { font-size: 18px; width: 18px; height: 18px; }
 .danger-button { background: #b42318 !important; }
 
+.reconsider-block { margin-top: 14px; border: 1px solid #ead9a6; border-left: 3px solid #b7791f; border-radius: 5px; background: #fffdf6; overflow: hidden; }
+.reconsider-block > header { display: flex; gap: 9px; padding: 12px 14px; border-bottom: 1px solid #f0e3c0; }
+.reconsider-block > header mat-icon { color: #b7791f; font-size: 19px; width: 19px; height: 19px; }
+.reconsider-block > header strong { display: block; color: #5f4408; font-size: 13px; margin-bottom: 2px; }
+.reconsider-block > header small { color: #8a6d2b; font-size: 11px; line-height: 1.5; }
+.eligibility { padding: 11px 14px 0; }
+.revocation-source { display: flex; gap: 8px; padding: 9px 10px; border-radius: 4px; background: #f6f0dd; color: #5f4408; font-size: 12px; line-height: 1.5; }
+.revocation-source mat-icon { font-size: 16px; width: 16px; height: 16px; margin-top: 2px; color: #a07b22; }
+.revocation-source small { color: #8a6d2b; }
+.blockers { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-direction: column; gap: 7px; }
+.blockers li { display: flex; gap: 7px; align-items: flex-start; color: #a33a2f; background: #fdf1ef; border: 1px solid #f2d2cc; border-radius: 4px; padding: 8px 10px; font-size: 11px; line-height: 1.5; }
+.blockers li mat-icon { font-size: 16px; width: 16px; height: 16px; flex: none; margin-top: 1px; }
+.eligible-hint { display: flex; gap: 7px; align-items: flex-start; margin: 10px 0 0; color: #1d7a4e; background: #eefaf2; border: 1px solid #cfe8d8; border-radius: 4px; padding: 9px 10px; font-size: 11px; line-height: 1.5; }
+.eligible-hint mat-icon { font-size: 16px; width: 16px; height: 16px; flex: none; margin-top: 1px; }
+.reconsider-block .decision-form { border-top: 0; padding-top: 12px; }
+.reconsider-block .reconsider-button { width: 100%; min-height: 42px; background: #b7791f !important; }
+.reconsider-block mat-progress-bar { margin-bottom: 2px; }
+
 .audit-summary { min-height: 54px; display: flex; align-items: center; gap: 10px; margin-bottom: 18px; padding: 10px 14px; border: 1px solid #cde0dd; border-radius: 5px; background: #f2f9f7; color: #53676e; font-size: 11px; }
 .audit-summary > mat-icon { color: #14835d; }
 .audit-summary strong { display: block; color: #274139; font-size: 12px; }

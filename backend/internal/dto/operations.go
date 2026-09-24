@@ -25,3 +25,10 @@ type ClearanceDecisionRequest struct {
 	Reason       string   `json:"reason" binding:"required,max=2000"`
 	Evidence     []string `json:"evidence" binding:"required,min=1"`
 }
+
+// ClearanceReconsiderationRequest sends a revoked clearance back to pending.
+type ClearanceReconsiderationRequest struct {
+	TurnaroundID uint64   `json:"turnaround_id" binding:"required"`
+	Reason       string   `json:"reason" binding:"required,max=2000"`
+	Evidence     []string `json:"evidence" binding:"required,min=1"`
+}

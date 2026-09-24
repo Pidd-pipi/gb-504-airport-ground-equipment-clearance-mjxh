@@ -3,6 +3,7 @@ package handler
 import (
 	"log/slog"
 	"net/http"
+	"strconv"
 
 	"groundclearance/internal/constants"
 	"groundclearance/internal/dto"
@@ -71,6 +72,36 @@ func (h *ClearanceDecisionHandler) Decide(c *gin.Context) {
 	}
 	c.Set("audit_persisted", true)
 	OKWithMessage(c, constants.MsgDecisionRecorded, row)
+}
+
+func (h *ClearanceDecisionHandler) ReconsiderationEligibility(c *gin.Context) {
+	turnaroundID, err := strconv.ParseUint(c.Query("turnaround_id"), 10, 64)
+	if err != nil || turnaroundID == 0 {
+		Fail(c, http.StatusBadRequest, constants.CodeBadRequest, "turnaround_id is required")
+		return
+	}
+	result, err := h.svc.ReconsiderationEligibility(turnaroundID)
+	if err != nil {
+		handleServiceError(c, h.logger, err, "clearance reconsideration eligibility")
+		return
+	}
+	OK(c, result)
+}
+
+func (h *ClearanceDecisionHandler) Reconsider(c *gin.Context) {
+	var request dto.ClearanceReconsiderationRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		Fail(c, http.StatusBadRequest, constants.CodeBadRequest, err.Error())
+		return
+	}
+	row, err := h.svc.Reconsider(request.TurnaroundID, middleware.GetUserID(c), request.Reason,
+		request.Evidence, requestAuditContext(c))
+	if err != nil {
+		handleServiceError(c, h.logger, err, "clearance reconsideration")
+		return
+	}
+	c.Set("audit_persisted", true)
+	OKWithMessage(c, constants.MsgReconsiderRecorded, row)
 }
 
 func stringValue(value any) string {

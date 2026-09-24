@@ -3,6 +3,7 @@ package repository
 import (
 	"errors"
 	"fmt"
+	"strconv"
 	"time"
 
 	"groundclearance/internal/model"
@@ -72,6 +73,23 @@ func (r *ClearanceDecisionRepository) SaveTx(tx *gorm.DB, row *model.ClearanceDe
 		return fmt.Errorf("save clearance decision: %w", err)
 	}
 	return nil
+}
+
+// FindLatestRevocationAuditTx locates the audit entry that recorded the current
+// revocation so a reconsideration can point back to exactly that revocation.
+func (r *ClearanceDecisionRepository) FindLatestRevocationAuditTx(tx *gorm.DB, decisionID uint64) (*model.AuditLog, error) {
+	var row model.AuditLog
+	err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+		Where("action = ? AND entity_type = ? AND entity_id = ? AND detail LIKE ?",
+			"CLEARANCE_TRANSITION", "clearance", strconv.FormatUint(decisionID, 10), `%"state":"revoked"%`).
+		Order("id DESC").First(&row).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("find revocation audit: %w", err)
+	}
+	return &row, nil
 }
 
 // Summary keeps the release desk counters consistent with persisted state.

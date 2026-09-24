@@ -31,6 +31,7 @@ docker compose up -d --build
 - `/ground-units`：登记牵引车、地面电源、传送带等设备，维护 `available / inspection / blocked / retired` 状态。
 - `/checks`：逐项记录检查结论、说明和证据；检查复核使用事务锁且结论不可改写，未处理或失败检查会阻断完全放行。
 - `/clearance`：形成 `cleared / restricted / revoked` 决定；完全放行同时要求全部关联设备可用，限制放行必须填写运行条件，紧急撤销不受未完成检查阻断。
+- 撤销复议：设备故障导致撤销后，安全放行员可在放行面板发起复议；仅当关联设备全部恢复可用、原检查没有待办或失败项时，撤销决定才退回 `pending`、周转退回 `checking`。条件不满足时入口逐条列出阻断原因，原撤销记录和理由始终保留在审计中，退回后的决定会标注来源撤销记录编号。
 - `/audit`：查询所有写操作；放行状态迁移额外保存前态、后态、依据、证据和 request id。
 
 JWT 与 RBAC 同时覆盖路由和页面按钮。系统不开放匿名注册，只有管理员能通过受保护的用户接口创建账号和指定角色。管理员、安全放行员可建立周转和形成决定；检查员可提交检查结论并上报设备异常，但不能自行恢复或退役设备；普通操作员拥有只读视图。后端还提供统一错误响应、请求追踪、限流和结构化日志。
@@ -70,6 +71,8 @@ docker-compose.yml
 | GET / POST | `/checks` | 查询 / 增加检查项 | 登录 / 检查角色 |
 | PATCH | `/checks/:id/review` | 提交结论和证据 | 检查角色 |
 | GET / POST | `/clearance` | 查询 / 形成放行决定 | 登录 / 管理角色 |
+| GET | `/clearance/reconsideration/eligibility?turnaround_id=` | 查询撤销复议条件与阻断原因 | 登录 |
+| POST | `/clearance/reconsideration` | 撤销复议：退回待决定、周转退回检查中 | 管理角色 |
 | GET | `/audit` | 查询审计记录 | 管理角色 |
 
 所有列表接口均为服务端分页，`page_size` 最大为 200；前端分页器不会再截断第 100 条之后的数据。`/healthz` 会真实探测 PostgreSQL 与 Redis，任一依赖不可用时返回 HTTP 503。

@@ -27,6 +27,7 @@ const (
 	MsgInvalidCredentials = "手机号或密码错误"
 	MsgLoginSuccess       = "登录成功"
 	MsgDecisionRecorded   = "放行决定已记录"
+	MsgReconsiderRecorded = "撤销复议已生效，决定退回待决定"
 )
 
 const (
@@ -97,6 +98,7 @@ const (
 	LogSafetyCheckCreated     = "safety check created"
 	LogSafetyCheckReviewed    = "safety check reviewed"
 	LogClearanceChanged       = "clearance state changed"
+	LogClearanceReconsidered  = "clearance revocation reconsidered"
 )
 
 func In(values []string, value string) bool {

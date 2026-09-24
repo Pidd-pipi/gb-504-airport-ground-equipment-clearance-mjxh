@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"groundclearance/internal/constants"
+	"groundclearance/internal/model"
 	"groundclearance/internal/util"
 )
 
@@ -82,5 +83,36 @@ func TestSharedEnums(t *testing.T) {
 	}
 	if !constants.IsValidRiskLevel(constants.RiskCritical) || constants.IsValidRiskLevel("urgent") {
 		t.Fatal("risk validation mismatch")
+	}
+}
+
+func TestReconsiderationBlockers(t *testing.T) {
+	passedChecks := []model.SafetyCheck{{CheckCode: "TUG-BRAKE", Result: constants.CheckPassed}}
+	availableUnits := []model.GroundUnit{{UnitCode: "TUG-017", State: constants.UnitAvailable}}
+
+	if blockers := reconsiderationBlockers(passedChecks, availableUnits); len(blockers) != 0 {
+		t.Fatalf("restored equipment and finished checks must be eligible, got blockers: %v", blockers)
+	}
+	if blockers := reconsiderationBlockers(nil, availableUnits); len(blockers) == 0 {
+		t.Fatal("a turnaround without any checks must not be reconsiderable")
+	}
+
+	notReady := reconsiderationBlockers(
+		[]model.SafetyCheck{
+			{CheckCode: "TUG-BRAKE", Result: constants.CheckPending},
+			{CheckCode: "GPU-INSULATION", Result: constants.CheckFailed},
+		},
+		[]model.GroundUnit{
+			{UnitCode: "GPU-204", State: constants.UnitBlocked},
+			{UnitCode: "TUG-017", State: constants.UnitAvailable},
+		},
+	)
+	if len(notReady) != 3 {
+		t.Fatalf("expected one pending, one failed and one blocked unit blocker, got: %v", notReady)
+	}
+
+	stillInspection := reconsiderationBlockers(passedChecks, []model.GroundUnit{{UnitCode: "GPU-204", State: constants.UnitInspection}})
+	if len(stillInspection) != 1 {
+		t.Fatalf("equipment still in inspection must block reconsideration: %v", stillInspection)
 	}
 }

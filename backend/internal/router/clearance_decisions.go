@@ -12,6 +12,8 @@ func (r *Router) registerClearanceRoutes(group *gin.RouterGroup) {
 	routes.Use(middleware.AuthRequired(r.cfg))
 	routes.GET("", r.clearance.List)
 	routes.GET("/summary", r.clearance.Summary)
+	routes.GET("/reconsideration/eligibility", r.clearance.ReconsiderationEligibility)
 	routes.GET("/:id", r.clearance.Get)
 	routes.POST("", middleware.RequireRole(constants.RoleAdmin, constants.RoleSafetyManager), r.clearance.Decide)
+	routes.POST("/reconsideration", middleware.RequireRole(constants.RoleAdmin, constants.RoleSafetyManager), r.clearance.Reconsider)
 }
